@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <stdint.h>
 #include <Xinput.h>
+#include <dsound.h>
 
 #define local_persist static
 #define global_variable static
@@ -11,10 +12,13 @@ typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
 
+
 typedef int8_t int8;
 typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
+
+typedef int32 bool32;
 
 struct win32_offscreen_buffer {
 	BITMAPINFO Info;
@@ -29,7 +33,7 @@ struct win32_offscreen_buffer {
 typedef X_INPUT_GET_STATE(x_input_get_state);
 X_INPUT_GET_STATE(XInputGetStateStub)
 {
-	return(0);
+	return(ERROR_DEVICE_NOT_CONNECTED);
 }
 global_variable x_input_get_state* XInputGetState_ = XInputGetStateStub;
 #define XInputGetState XInputGetState_
@@ -39,10 +43,14 @@ global_variable x_input_get_state* XInputGetState_ = XInputGetStateStub;
 typedef X_INPUT_SET_STATE(x_input_set_state);
 X_INPUT_SET_STATE(XInputSetStateStub)
 {
-	return(0);
+	return(ERROR_DEVICE_NOT_CONNECTED);
 }
 global_variable x_input_set_state* XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
+
+#define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND * ppDS, LPUNKNOWN pUnkOuter)
+typedef DIRECT_SOUND_CREATE(direct_sound_create);
+
 
 internal void Win32LoadXInput()
 {
@@ -56,6 +64,44 @@ internal void Win32LoadXInput()
 
 global_variable bool GlobalRunning;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
+
+
+internal void Win32InitDSound()
+{
+	//Load the library
+
+	HMODULE DSoundLibrary = LoadLibraryA("dsound.dll");
+
+	if (DSoundLibrary)
+	{
+
+		direct_sound_create* DirectSoundCreate = (direct_sound_create*)GetProcAddress(DSoundLibrary, "DirectSoundCreate");
+
+		LPDIRECTSOUND DirectSoundPointer;
+
+		if (DirectSoundCreate && SUCCEEDED(DirectSoundCreate(0, &DirectSoundPointer, 0)))
+		{
+
+		}
+
+		else
+		{
+			//Diagnostic
+		}
+
+		//Get a DirectSoun object
+
+
+
+		//"Create" a primary buffer
+
+
+		//"Create" a secondary buffer
+
+	}
+
+
+}
 
 internal void RenderWeirdGradient(win32_offscreen_buffer* Buffer, int BlueOffset, int GreenOffset)
 {
@@ -157,19 +203,16 @@ internal LRESULT CALLBACK Win32MainWindowCallBack(HWND Window, UINT Message, WPA
 	{
 		OutputDebugString(L"WM_ACTIVATEAPP\n");
 	}break;
+
 	case WM_KEYDOWN:
 	{
-		WPARAM VKCode = WParam;
-
-		if (VKCode == VK_ESCAPE)
-		{
-			OutputDebugStringA("Is Down");
-		}
 
 	}break;
 	case WM_KEYUP:
 	{
 		WPARAM VKCode = WParam;
+		bool32 WasDown = (LParam & (1 << 30));
+		bool32 IsDown = (LParam & (1 << 31));
 		
 		if (VKCode == 'W')
 		{
@@ -214,7 +257,16 @@ internal LRESULT CALLBACK Win32MainWindowCallBack(HWND Window, UINT Message, WPA
 
 		if (VKCode == VK_ESCAPE)
 		{
-			OutputDebugStringA("Was Down");
+			OutputDebugStringA("ESCAPE: ");
+			if (IsDown)
+			{
+				OutputDebugStringA("Is Down");
+			}
+			
+			if (WasDown)
+			{
+				OutputDebugStringA("Was Down");
+			}
 			OutputDebugStringA("\n");
 		}
 
@@ -283,6 +335,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			int XOffset = 0;
 			int YOffset = 0;
 
+			Win32InitDSound();
+
 			GlobalRunning = true;
 
 			while (GlobalRunning)
@@ -306,7 +360,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 					if (XInputGetState(ControllerIndex, &ControllerState))
 					{
 						XINPUT_GAMEPAD* Pad = &ControllerState.Gamepad;
-
+						
 						bool Up = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
 						bool Down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
 						bool Left = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
