@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <Xinput.h>
 #include <dsound.h>
+#include <math.h>
 
 #define local_persist static
 #define global_variable static
@@ -19,6 +20,9 @@ typedef int32_t int32;
 typedef int64_t int64;
 
 typedef int32 bool32;
+
+typedef float real32;
+typedef double real64;
 
 struct win32_offscreen_buffer {
 	BITMAPINFO Info;
@@ -398,13 +402,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			int SamplesPerSecond = 48000;
 			int ToneHz = 256;
 			uint32 RunningSampleIndex = 0;
-			int SquareWavePeriod = SamplesPerSecond / ToneHz;
-			int HalfSquareWavePeriod = SquareWavePeriod / 2;
+			int WavePeriod = SamplesPerSecond / ToneHz;
+			int HalfWavePeriod = WavePeriod / 2;
 			int BytesPerSample = sizeof(int16) * 2;
 			int SecondaryBufferSize = SamplesPerSecond * BytesPerSample;
 
 			Win32InitDSound(Window, SecondaryBufferSize, SamplesPerSecond);
-			GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+			bool IsPlaying = false;
 			GlobalRunning = true;
 
 			while (GlobalRunning)
@@ -477,7 +481,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				{
 					DWORD ByteToLock = (RunningSampleIndex * BytesPerSample) % SecondaryBufferSize;
 					DWORD BytesToWrite;
-					if (ByteToLock > PlayCursor)
+					if (ByteToLock == PlayCursor)
+					{
+						BytesToWrite = SecondaryBufferSize;
+					}
+					else if (ByteToLock > PlayCursor)
 					{
 						BytesToWrite = SecondaryBufferSize - ByteToLock;
 						BytesToWrite += PlayCursor;
@@ -495,29 +503,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 					if (SUCCEEDED(Error))
 					{
 						int16* SampleOut = (int16*)Region1;
-						int16 Region1SampleCount = Region1Size / BytesPerSample;
+						DWORD Region1SampleCount = Region1Size / BytesPerSample;
 						int16 ToneVolume = 3000;
 						for (DWORD SampleCount = 0; SampleCount < Region1SampleCount; SampleCount++)
 						{
-							int16 SampleValue = ((RunningSampleIndex++ / HalfSquareWavePeriod) % 2) ? ToneVolume : -ToneVolume;
+							int16 SampleValue = ((RunningSampleIndex++ / HalfWavePeriod) % 2) ? ToneVolume : -ToneVolume;
 							*SampleOut++ = SampleValue;
 							*SampleOut++ = SampleValue;
 						}
 						SampleOut = (int16*)Region2;
-						int16 Region2SampleCount = Region2Size / BytesPerSample;
+						DWORD Region2SampleCount = Region2Size / BytesPerSample;
 					
 						for (DWORD SampleCount = 0; SampleCount < Region2SampleCount; SampleCount++)
 						{
-							int16 SampleValue = ((RunningSampleIndex++ / HalfSquareWavePeriod) % 2) ? ToneVolume : -ToneVolume;
+							int16 SampleValue = ((RunningSampleIndex++ / HalfWavePeriod) % 2) ? ToneVolume : -ToneVolume;
 							*SampleOut++ = SampleValue;
 							*SampleOut++ = SampleValue;
 						}
 						GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
 					}
-
-					
 				}
-				
+				if (!IsPlaying)
+				{
+					IsPlaying = true;
+					GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+				}
 
 				XOffset++;
 
