@@ -1,2 +1,6 @@
 ﻿  win32_handmade.cpp
+C:\Users\mateo\OneDrive\Documentos\ProyectosC++\HandmadeHero\code\Handmadehero\win32_handmade.cpp(498,32): warning C4244: 'inicializando': conversión de 'DWORD' a 'int16'; posible pérdida de datos
+C:\Users\mateo\OneDrive\Documentos\ProyectosC++\HandmadeHero\code\Handmadehero\win32_handmade.cpp(500,47): warning C4018: '<': no coinciden signed/unsigned
+C:\Users\mateo\OneDrive\Documentos\ProyectosC++\HandmadeHero\code\Handmadehero\win32_handmade.cpp(507,32): warning C4244: 'inicializando': conversión de 'DWORD' a 'int16'; posible pérdida de datos
+C:\Users\mateo\OneDrive\Documentos\ProyectosC++\HandmadeHero\code\Handmadehero\win32_handmade.cpp(509,47): warning C4018: '<': no coinciden signed/unsigned
   Handmadehero.vcxproj -> C:\Users\mateo\OneDrive\Documentos\ProyectosC++\HandmadeHero\code\Handmadehero\x64\Debug\Handmadehero.exe

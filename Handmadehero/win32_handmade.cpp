@@ -67,6 +67,7 @@ internal void Win32LoadXInput()
 
 global_variable bool GlobalRunning;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
+global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 
 internal void Win32InitDSound(HWND Window, int32 BufferSize, int32 SamplesPerSecond)
 {
@@ -78,7 +79,6 @@ internal void Win32InitDSound(HWND Window, int32 BufferSize, int32 SamplesPerSec
 	{
 
 		direct_sound_create* DirectSoundCreate = (direct_sound_create*)GetProcAddress(DSoundLibrary, "DirectSoundCreate");
-		//create_sound_buffer* CreateSoundBuffer = (create_sound_buffer*)GetProcAddress(DSoundLibrary, "CreateSoundBuffer");
 
 		LPDIRECTSOUND DirectSoundPointer;
 
@@ -127,13 +127,12 @@ internal void Win32InitDSound(HWND Window, int32 BufferSize, int32 SamplesPerSec
 				//Diagnostic
 			}
 
-			LPDIRECTSOUNDBUFFER SecondaryBuffer;
 			DSBUFFERDESC BufferDescription = {};
 			BufferDescription.dwSize = sizeof(BufferDescription);
 			BufferDescription.dwFlags = 0;
 			BufferDescription.dwBufferBytes = BufferSize;
 			BufferDescription.lpwfxFormat = &WaveFormat;
-			if (SUCCEEDED(DirectSoundPointer->CreateSoundBuffer(&BufferDescription, &SecondaryBuffer, 0)))
+			if (SUCCEEDED(DirectSoundPointer->CreateSoundBuffer(&BufferDescription, &GlobalSecondaryBuffer, 0)))
 			{
 				OutputDebugStringA("Secondary Buffer created with succes\n");
 			}
@@ -396,8 +395,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			int XOffset = 0;
 			int YOffset = 0;
 
-			Win32InitDSound(Window, 48000, 4800 * sizeof(int16) * 2);
+			int SamplesPerSecond = 48000;
+			int ToneHz = 256;
+			uint32 RunningSampleIndex = 0;
+			int SquareWavePeriod = SamplesPerSecond / ToneHz;
+			int HalfSquareWavePeriod = SquareWavePeriod / 2;
+			int BytesPerSample = sizeof(int16) * 2;
+			int SecondaryBufferSize = SamplesPerSecond * BytesPerSample;
 
+			Win32InitDSound(Window, SecondaryBufferSize, SamplesPerSecond);
+			GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 			GlobalRunning = true;
 
 			while (GlobalRunning)
@@ -461,6 +468,57 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 				Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext, WindowDimension.Width, WindowDimension.Height);
 				RenderWeirdGradient(&GlobalBackBuffer, XOffset, YOffset);
+
+				DWORD PlayCursor;
+				DWORD WriteCursor;
+				HRESULT Error = GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor);
+
+				if (SUCCEEDED(Error))                                                                           
+				{
+					DWORD ByteToLock = (RunningSampleIndex * BytesPerSample) % SecondaryBufferSize;
+					DWORD BytesToWrite;
+					if (ByteToLock > PlayCursor)
+					{
+						BytesToWrite = SecondaryBufferSize - ByteToLock;
+						BytesToWrite += PlayCursor;
+					}
+					else
+					{
+						BytesToWrite = PlayCursor - ByteToLock;
+					}
+					LPVOID Region1;
+					DWORD Region1Size;
+					LPVOID Region2;
+					DWORD Region2Size;
+					
+					HRESULT Error = GlobalSecondaryBuffer->Lock(ByteToLock, BytesToWrite, &Region1, &Region1Size, &Region2, &Region2Size, 0);
+					if (SUCCEEDED(Error))
+					{
+						int16* SampleOut = (int16*)Region1;
+						int16 Region1SampleCount = Region1Size / BytesPerSample;
+						int16 ToneVolume = 3000;
+						for (DWORD SampleCount = 0; SampleCount < Region1SampleCount; SampleCount++)
+						{
+							int16 SampleValue = ((RunningSampleIndex++ / HalfSquareWavePeriod) % 2) ? ToneVolume : -ToneVolume;
+							*SampleOut++ = SampleValue;
+							*SampleOut++ = SampleValue;
+						}
+						SampleOut = (int16*)Region2;
+						int16 Region2SampleCount = Region2Size / BytesPerSample;
+					
+						for (DWORD SampleCount = 0; SampleCount < Region2SampleCount; SampleCount++)
+						{
+							int16 SampleValue = ((RunningSampleIndex++ / HalfSquareWavePeriod) % 2) ? ToneVolume : -ToneVolume;
+							*SampleOut++ = SampleValue;
+							*SampleOut++ = SampleValue;
+						}
+						GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
+					}
+
+					
+				}
+				
+
 				XOffset++;
 
 			}
