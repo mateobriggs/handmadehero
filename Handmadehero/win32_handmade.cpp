@@ -421,8 +421,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//	HICON     hIcon;
 	WindowClass.lpszClassName = "HandMadeHeroWindowClass";
 	Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
-
-
+	LARGE_INTEGER PerfCountFrequencyResult;
+	QueryPerformanceFrequency(&PerfCountFrequencyResult);
+	int64 PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
 
 	if (RegisterClassA(&WindowClass)) 
 	{
@@ -462,6 +463,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
 			GlobalRunning = true;
+
+			LARGE_INTEGER LastCounter;
+			QueryPerformanceCounter(&LastCounter);
+
+
+			int64 LastCycleCount = __rdtsc();
 
 			while (GlobalRunning)
 			{
@@ -550,6 +557,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 				XOffset++;
 
+				int64 EndCycleCount = __rdtsc();
+
+				LARGE_INTEGER EndCounter;
+				QueryPerformanceCounter(&EndCounter);
+
+				int64 CyclesElapsed = EndCycleCount - LastCycleCount;
+				int32 MCPerFrame = (int32)CyclesElapsed / (1000 * 1000);
+
+				int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+				int32 MSPerFrame = (int32)((1000 * CounterElapsed) / PerfCountFrequency);
+
+				int32 FPS = 1000 / MSPerFrame;
+
+				char Buffer[256];
+				wsprintfA(Buffer, "%dms, %dFPS, %dMCPF\n", MSPerFrame, FPS, MCPerFrame);
+				OutputDebugStringA(Buffer);
+
+				LastCounter = EndCounter;
+				LastCycleCount = EndCycleCount;
 			}
 
 		}
