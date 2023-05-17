@@ -4,10 +4,10 @@
 #include <dsound.h>
 #include <math.h>
 
+
 #define local_persist static
 #define global_variable static
 #define internal static
-#define Pi32 3.14159265359f;
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -24,14 +24,10 @@ typedef int32 bool32;
 
 typedef float real32;
 typedef double real64;
+#define Pi32 3.14159265359f
 
-struct win32_offscreen_buffer {
-	BITMAPINFO Info;
-	VOID* Memory;
-	int Width;
-	int Height;
-	int Pitch;
-};
+#include "Handmade.h"
+#include "Handmade.cpp"
 
 // INPUT GET STATE
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
@@ -60,6 +56,13 @@ typedef DIRECT_SOUND_CREATE(direct_sound_create);
 typedef CREATE_SOUND_BUFFER(create_sound_buffer);
 
 
+struct win32_offscreen_buffer {
+	BITMAPINFO Info;
+	VOID* Memory;
+	int Width;
+	int Height;
+	int Pitch;
+};
 internal void Win32LoadXInput()
 {
 	HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
@@ -168,27 +171,7 @@ internal void Win32InitDSound(HWND Window, int32 BufferSize, int32 SamplesPerSec
 
 }
 
-internal void RenderWeirdGradient(win32_offscreen_buffer* Buffer, int BlueOffset, int GreenOffset)
-{
 
-	int Width = Buffer->Width;
-
-	uint8* Row = (uint8*)Buffer->Memory;
-
-	for (int Y = 0; Y < Buffer->Height; Y++)
-	{
-		uint32* Pixel = (uint32*)Row;
-
-		for (int X = 0; X < Buffer->Width; X++)
-		{
-			uint8 Blue = (X + BlueOffset);
-			uint8 Green = (Y + GreenOffset);
-			*Pixel++ = ((Green << 8) | Blue);
-		}
-
-		Row += Buffer->Pitch;
-	}
-}
 
 internal void Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height)
 {
@@ -247,7 +230,7 @@ void Win32FillBuffer(win32_sound_output* SoundOutput, DWORD ByteToLock, DWORD By
 		int16 ToneVolume = 3000;
 		for (DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; SampleIndex++)
 		{
-			real32 t = 2.0f * 3.14159265359f * ((real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod);
+			real32 t = 2.0f * Pi32 * ((real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod);
 			real32 SinValue = sinf(t);
 			int16 SampleValue = (int16)(SinValue * ToneVolume);
 			*SampleOut++ = SampleValue;
@@ -259,7 +242,7 @@ void Win32FillBuffer(win32_sound_output* SoundOutput, DWORD ByteToLock, DWORD By
 
 		for (DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; SampleIndex++)
 		{
-			real32 t = 2.0f * 3.14159265359f * ((real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod);
+			real32 t = 2.0f * Pi32 * ((real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod);
 			real32 SinValue = sinf(t);
 			int16 SampleValue = (int16)(SinValue * ToneVolume);
 			*SampleOut++ = SampleValue;
@@ -409,6 +392,8 @@ internal LRESULT CALLBACK Win32MainWindowCallBack(HWND Window, UINT Message, WPA
 	return (Result);
 }
 
+
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) 
 {
 	Win32LoadXInput();
@@ -530,7 +515,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				win32_window_dimension WindowDimension = Win32GetWindowDimension(Window);
 
 				Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext, WindowDimension.Width, WindowDimension.Height);
-				RenderWeirdGradient(&GlobalBackBuffer, XOffset, YOffset);
+				game_offscreen_buffer Buffer = {};
+				Buffer.Memory = GlobalBackBuffer.Memory;
+				Buffer.Height = GlobalBackBuffer.Height;
+				Buffer.Width = GlobalBackBuffer.Width;
+				Buffer.Pitch = GlobalBackBuffer.Pitch;
+				GameUpdateAndRender(&Buffer);
+
 
 				DWORD PlayCursor;
 				DWORD WriteCursor;
@@ -570,9 +561,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 				int32 FPS = 1000 / MSPerFrame;
 
-				char Buffer[256];
-				wsprintfA(Buffer, "%dms, %dFPS, %dMCPF\n", MSPerFrame, FPS, MCPerFrame);
-				OutputDebugStringA(Buffer);
+				char Bufferf[256];
+				wsprintfA(Bufferf, "%dms, %dFPS, %dMCPF\n", MSPerFrame, FPS, MCPerFrame);
+				OutputDebugStringA(Bufferf);
 
 				LastCounter = EndCounter;
 				LastCycleCount = EndCycleCount;

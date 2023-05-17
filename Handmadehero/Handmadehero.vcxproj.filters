@@ -2,5 +2,9 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="win32_handmade.cpp" />
+    <ClCompile Include="Handmade.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Handmade.h" />
   </ItemGroup>
 </Project>
